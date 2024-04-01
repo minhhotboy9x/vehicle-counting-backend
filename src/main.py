@@ -32,12 +32,10 @@ def test_mongodb():
     else:
         return "Failed to connect to MongoDB!"
 
-
-
 # Route for testing other functionality
 @app.route('/')
 def index():
-    return "hello"
+    return 'hello'
 
 if __name__ == '__main__':
     app.run(debug=True)
