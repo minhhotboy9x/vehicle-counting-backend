@@ -6,3 +6,6 @@ STRING_CONNECTION = r'mongodb+srv://minhnguyenquocnhat:minh19032002@vehiclecount
 
 DATABASE = 'VehicleCounting'
 ACCOUNT_COLLECTION = 'Account'
+
+FRAME_WIDTH = 800
+FRAME_HEIGHT = 600
