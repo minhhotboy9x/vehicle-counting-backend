@@ -43,13 +43,11 @@ class DetectionTracker:
         KalmanBoxTracker.count = 0
 
     def detect_track(self, frame):
-        results = self.model(frame, verbose=False)
-        dets = np.array([])
-        for r in results:
-            box = r.boxes.xyxy
-            conf = r.boxes.conf.unsqueeze(1)
-            cls = r.boxes.cls.unsqueeze(1)
-            dets = torch.cat((box, conf, cls), dim=1).cpu().numpy()
+        r = self.model(frame, verbose=False)[0]
+        box = r.boxes.xyxy
+        conf = r.boxes.conf.unsqueeze(1)
+        cls = r.boxes.cls.unsqueeze(1)
+        dets = torch.cat((box, conf, cls), dim=1).cpu().numpy()
         tracked_dets = self.tracker.update(dets)
         
         if len(tracked_dets) > 0:
