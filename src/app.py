@@ -1,14 +1,12 @@
 from flask import Flask, Response, render_template
 from flask_cors import CORS
 from routes.stream import streaming_bp
-from routes.auth_route import auth_route
 from pymongo import MongoClient
 from config import STRING_CONNECTION
 
 app = Flask(__name__)
 CORS(app)  # Allow CORS for all origins
 app.register_blueprint(streaming_bp)
-app.register_blueprint(auth_route)
 
 # Function to test MongoDB connection
 def test_mongodb_connection():
