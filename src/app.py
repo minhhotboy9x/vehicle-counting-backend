@@ -1,21 +1,24 @@
 from flask import Flask, Response, render_template
 from flask_cors import CORS
 from routes.stream import streaming_bp
-from pymongo import MongoClient
+from routes.roi_boundary import roiboundary_bp, init_roiboundary_bp
 from config import STRING_CONNECTION
+from flask_pymongo import PyMongo
 
 app = Flask(__name__)
+app.config["MONGO_URI"] = STRING_CONNECTION
+mongo = PyMongo(app)
 CORS(app)  # Allow CORS for all origins
+
+init_roiboundary_bp(mongo) 
 app.register_blueprint(streaming_bp)
+app.register_blueprint(roiboundary_bp)
 
 # Function to test MongoDB connection
 def test_mongodb_connection():
     try:
-        client = MongoClient(STRING_CONNECTION)
-        db = client.test_database
-        collection = db.test_collection
+        collection = mongo.db.test_collection
         collection.insert_one({'test_key': 'test_value'})
-        client.close()
         print("Connected to DB")
         return True
     except Exception as e:

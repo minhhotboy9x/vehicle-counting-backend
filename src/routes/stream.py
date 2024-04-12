@@ -5,7 +5,7 @@ from model.M_DetectionTracker import DetectionTracker
 
 streaming_bp = Blueprint('streaming', __name__)
 
-det_tracker = DetectionTracker('models/yolov8s.pt')
+det_tracker = DetectionTracker('models/v8n_relu_repc3_VOC.pt')
 
 
 @streaming_bp.route('/streaming/<int:cam_id>')
