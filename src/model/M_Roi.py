@@ -1,56 +1,45 @@
-class Boundary:
+class Roi:
     mongo = None
     @classmethod
     def init_mongo(cls, mongo):
         cls.mongo = mongo
     
-    def __init__(self, id, camId, pointL, pointR, pointDirect):
+    def __init__(self, id, camId, points):
         self.id = id
         self.camId = camId
-        self.pointL = pointL
-        self.pointR = pointR
-        self.pointDirect = pointDirect
-
-    def json(self):
-        return {
-            'id': self.id,
-            'camId': self.camId,
-            'pointL': self.pointL,
-            'pointR': self.pointR,
-            'pointDirect': self.pointDirect
-        }
-
+        self.points = points
+    
     @classmethod
     def insert(self, data):
-        return Boundary.mongo.db.boundary.insert_one(data)
+        return Roi.mongo.db.roi.insert_one(data)
     
     @classmethod
     def update(cls, id, **kwargs):
         query = {'id': id}
         new_values = {'$set': kwargs}
-        result = cls.mongo.db.boundary.update_one(query, new_values)
+        result = cls.mongo.db.roi.update_one(query, new_values)
         return result.acknowledged
     
     @classmethod
     def update_or_insert(cls, id, **kwargs):
         # Tìm kiếm bản ghi có id tương ứng trong cơ sở dữ liệu
         query = {'id': id}
-        existing_data = cls.mongo.db.boundary.find_one(query)
+        existing_data = cls.mongo.db.roi.find_one(query)
         if existing_data:
             # Nếu tồn tại bản ghi, thực hiện cập nhật
             new_values = {'$set': kwargs}
-            result = cls.mongo.db.boundary.update_one(query, new_values)
+            result = cls.mongo.db.roi.update_one(query, new_values)
             return result.acknowledged
         else:
             # Nếu không tồn tại bản ghi, thực hiện insert
             new_data = {'id': id, **kwargs}
-            result = cls.mongo.db.boundary.insert_one(new_data)
+            result = cls.mongo.db.roi.insert_one(new_data)
             return result.acknowledged
-
+        
     @classmethod
     def delete(cls, query):
-        return Boundary.mongo.db.boundary.delete_one(query)
+        return cls.mongo.db.roi.delete_one(query)
     
     @classmethod
     def find(cls, query):
-        return list(Boundary.mongo.db.boundary.find(query))
+        return list(cls.mongo.db.roi.find(query))
