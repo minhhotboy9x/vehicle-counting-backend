@@ -6,6 +6,8 @@ import torch
 from random import randint
 from config import FRAME_WIDTH, FRAME_HEIGHT
 from model.sort import *
+import supervision as sv
+from collections import defaultdict, deque
 
 def draw_boxes(img, bbox, identities=None, categories=None, names=None, offset=(0, 0)):
     for i, box in enumerate(bbox):
@@ -37,7 +39,7 @@ def random_color_list():
 class DetectionTracker:
     def __init__(self, model_path) -> None:
         self.model = YOLO(model_path)
-        self.tracker = Sort()
+        self.tracker = sv.ByteTrack(frame_rate=25)
 
     def update_model(self, new_model_path):
         self.model = YOLO(new_model_path)
@@ -45,31 +47,50 @@ class DetectionTracker:
     def reset_track(self):
         KalmanBoxTracker.count = 0
 
+    # def detect_track(self, frame):
+    #     r = self.model(frame, verbose=False, device=0)[0]
+    #     box = r.boxes.xyxy
+    #     conf = r.boxes.conf.unsqueeze(1)
+    #     cls = r.boxes.cls.unsqueeze(1)
+    #     dets = torch.cat((box, conf, cls), dim=1).cpu().numpy()
+    #     tracked_dets = self.tracker.update(dets)
+    #     if len(tracked_dets) > 0:
+    #         bbox_xyxy = tracked_dets[:,:4]
+    #         identities = tracked_dets[:, 8]
+    #         categories = tracked_dets[:, 4]
+    #         draw_boxes(frame, bbox_xyxy, identities, categories)
+    #     return frame
+    
+
+
     def detect_track(self, frame):
-        r = self.model(frame, verbose=False)[0]
-        box = r.boxes.xyxy
-        conf = r.boxes.conf.unsqueeze(1)
-        cls = r.boxes.cls.unsqueeze(1)
-        dets = torch.cat((box, conf, cls), dim=1).cpu().numpy()
-        tracked_dets = self.tracker.update(dets)
+        results = self.model(frame, verbose=False)[0]
+
+        detections = sv.Detections(xyxy=results.boxes.xyxy.cpu().numpy(),
+                                confidence=results.boxes.conf.cpu().numpy(),
+                                class_id=results.boxes.cls.cpu().numpy().astype(int))
+
+        detections = detections[np.isin(detections.class_id, [2, 1, 0])]
+
+        detections = self.tracker.update_with_detections(detections=detections)
+        bounding_box_annotator = sv.BoundingBoxAnnotator()
+        label_annotator = sv.LabelAnnotator(text_padding=5)
+        points = detections.get_anchors_coordinates(
+                anchor=sv.Position.BOTTOM_CENTER)
+        labels = [f"#{tracker_id}" for tracker_id in detections.tracker_id]
+        annotated_frame = bounding_box_annotator.annotate(
+            scene=frame.copy(), detections=detections)
         
-        if len(tracked_dets) > 0:
-            bbox_xyxy = tracked_dets[:,:4]
-            identities = tracked_dets[:, 8]
-            categories = tracked_dets[:, 4]
-            draw_boxes(frame, bbox_xyxy, identities, categories)
-        return frame
+        annotated_frame = label_annotator.annotate(
+            scene=annotated_frame, detections=detections, labels=labels)
+        
+        return annotated_frame
 
     # Function to generate frames from video
     def generate_frames(self, cam_id):
         self.reset_track()
+
         video_path = f'./imgs/{cam_id}.mp4'
-
-        if os.path.exists(video_path):
-            print("Đường dẫn video hợp lệ.")
-        else:
-            print("Đường dẫn video không tồn tại hoặc không hợp lệ.")
-
         cap = cv2.VideoCapture(video_path)
         while cap.isOpened():
             ret, frame = cap.read()
@@ -79,8 +100,6 @@ class DetectionTracker:
                 # Perform object detection
                 frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
                 frame = self.detect_track(frame)
-                # frame = results[0].plot()  # Render detected objects on the frame
-
                 ret, buffer = cv2.imencode('.jpg', frame)
                 frame = buffer.tobytes()
                 yield (b'--frame\r\n'
