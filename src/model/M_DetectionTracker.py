@@ -8,6 +8,7 @@ from config import FRAME_WIDTH, FRAME_HEIGHT
 from model.sort import *
 import supervision as sv
 from collections import defaultdict, deque
+from supervision.tracker.byte_tracker.basetrack import BaseTrack
 
 def draw_boxes(img, bbox, identities=None, categories=None, names=None, offset=(0, 0)):
     for i, box in enumerate(bbox):
@@ -45,7 +46,7 @@ class DetectionTracker:
         self.model = YOLO(new_model_path)
 
     def reset_track(self):
-        KalmanBoxTracker.count = 0
+        self.tracker.reset()
 
     # def detect_track(self, frame):
     #     r = self.model(frame, verbose=False, device=0)[0]
@@ -89,7 +90,6 @@ class DetectionTracker:
     # Function to generate frames from video
     def generate_frames(self, cam_id):
         self.reset_track()
-
         video_path = f'./imgs/{cam_id}.mp4'
         cap = cv2.VideoCapture(video_path)
         while cap.isOpened():
