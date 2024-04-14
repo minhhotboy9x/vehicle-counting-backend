@@ -39,6 +39,9 @@ class DetectionTracker:
         self.model = YOLO(model_path)
         self.tracker = Sort()
 
+    def update_model(self, new_model_path):
+        self.model = YOLO(new_model_path)
+
     def reset_track(self):
         KalmanBoxTracker.count = 0
 

@@ -7,6 +7,12 @@ streaming_bp = Blueprint('streaming', __name__)
 
 det_tracker = DetectionTracker('models/v8n_relu_repc3_VOC.pt')
 
+@streaming_bp.route('/update_model')
+def update_model():
+    model = request.args['model']
+    new_model_path = f'./models/{model}'
+    det_tracker.update_model(new_model_path)
+    return "Model updated successfully!"
 
 @streaming_bp.route('/streaming/<int:cam_id>')
 def stream_cam(cam_id):
