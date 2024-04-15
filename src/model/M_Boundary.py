@@ -1,5 +1,11 @@
+import supervision as sv
+from supervision.geometry.core import Point
+
 class Boundary:
     mongo = None
+    line_counters = []
+    line_annotators = []
+
     @classmethod
     def init_mongo(cls, mongo):
         cls.mongo = mongo
@@ -10,6 +16,7 @@ class Boundary:
         self.pointL = pointL
         self.pointR = pointR
         self.pointDirect = pointDirect
+    
 
     def json(self):
         return {
@@ -49,8 +56,17 @@ class Boundary:
 
     @classmethod
     def delete(cls, query):
-        return Boundary.mongo.db.boundary.delete_one(query)
+        return cls.mongo.db.boundary.delete_one(query)
     
     @classmethod
     def find(cls, query):
-        return list(Boundary.mongo.db.boundary.find(query))
+        return list(cls.mongo.db.boundary.find(query))
+    
+    @classmethod
+    def get_line_annotators(cls, boundaries_list):
+        cls.line_counters = [sv.LineZone(Point(boundary['pointL']['x'] + 7.5, boundary['pointL']['y'] + 7.5), 
+                                         Point(boundary['pointR']['x'] + 7.5, boundary['pointR']['y'] + 7.5)) 
+                             for boundary in boundaries_list]
+        
+        cls.line_annotators = [sv.LineZoneAnnotator(text_thickness = 1, text_padding=5) for _ in boundaries_list]
+        

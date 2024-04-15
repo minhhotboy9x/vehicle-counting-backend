@@ -1,14 +1,13 @@
 from ultralytics import YOLO
 import os
 import cv2
-import os
+from model.M_Boundary import Boundary
 import torch
 from random import randint
 from config import FRAME_WIDTH, FRAME_HEIGHT
 from model.sort import *
 import supervision as sv
 from collections import defaultdict, deque
-from supervision.tracker.byte_tracker.basetrack import BaseTrack
 
 def draw_boxes(img, bbox, identities=None, categories=None, names=None, offset=(0, 0)):
     for i, box in enumerate(bbox):
@@ -64,7 +63,7 @@ class DetectionTracker:
     
 
 
-    def detect_track(self, frame):
+    def detect_track(self, frame, cam_id):
         results = self.model(frame, verbose=False)[0]
 
         detections = sv.Detections(xyxy=results.boxes.xyxy.cpu().numpy(),
@@ -72,8 +71,13 @@ class DetectionTracker:
                                 class_id=results.boxes.cls.cpu().numpy().astype(int))
 
         detections = detections[np.isin(detections.class_id, [2, 1, 0])]
-
         detections = self.tracker.update_with_detections(detections=detections)
+
+        # line_counter
+        for line_counter in Boundary.line_counters:
+            line_counter.trigger(detections=detections)
+
+        # draw boxes and labels
         bounding_box_annotator = sv.BoundingBoxAnnotator()
         label_annotator = sv.LabelAnnotator(text_padding=5)
         points = detections.get_anchors_coordinates(
@@ -85,6 +89,10 @@ class DetectionTracker:
         annotated_frame = label_annotator.annotate(
             scene=annotated_frame, detections=detections, labels=labels)
         
+        # draw line
+        for line_annotator, line_counter in zip(Boundary.line_annotators, Boundary.line_counters):
+            annotated_frame = line_annotator.annotate(frame=annotated_frame, line_counter=line_counter)
+
         return annotated_frame
 
     # Function to generate frames from video
@@ -99,7 +107,7 @@ class DetectionTracker:
             else:
                 # Perform object detection
                 frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-                frame = self.detect_track(frame)
+                frame = self.detect_track(frame, cam_id)
                 ret, buffer = cv2.imencode('.jpg', frame)
                 frame = buffer.tobytes()
                 yield (b'--frame\r\n'

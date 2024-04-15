@@ -1,0 +1,14 @@
+filterpy==1.4.5
+Flask==3.0.3
+Flask_Cors==4.0.0
+Flask_PyMongo==2.3.0
+lapx==0.5.7
+matplotlib==3.8.3
+numpy==1.26.4
+opencv_python==4.9.0.80
+opencv_python_headless==4.9.0.80
+scipy==1.13.0
+skimage==0.0
+supervision==0.19.0
+torch==2.2.1+cu121
+ultralytics==8.1.29

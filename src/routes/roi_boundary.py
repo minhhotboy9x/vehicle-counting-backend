@@ -40,7 +40,19 @@ def init_roiboundary_bp(mongo):
             return jsonify({'message': 'Update successful'}), 200
         else:
             return jsonify({'error': 'Failed to update data'}), 400
-        
+    
+    def get_boundary_and_counter(query):
+        # Thực hiện truy vấn
+        results = Boundary.find(query)
+        # Tạo một danh sách dưới dạng từ điển
+        boundaries_list = [{'id': boundary['id'], 
+                            'camId': boundary['camId'], 
+                            'pointL': boundary['pointL'], 
+                            'pointR': boundary['pointR'], 
+                            'pointDirect': boundary['pointDirect']} 
+                            for boundary in results]
+        Boundary.get_line_annotators(boundaries_list)
+        return boundaries_list
 
     @roiboundary_bp.route('/delete_boundary', methods=['POST'])
     def delete_boundary():
@@ -52,7 +64,7 @@ def init_roiboundary_bp(mongo):
         query = {'id': id}
         # Thực hiện xóa
         result = Boundary.delete(query)
-
+        get_boundary_and_counter(query)
         if result.deleted_count > 0:
             return jsonify({'message': 'Delete successful'}), 200
         else:
@@ -63,16 +75,7 @@ def init_roiboundary_bp(mongo):
     def get_boundaries():
         data = request.json
         query = {key: value for key, value in data.items() if value is not None}
-        # Thực hiện truy vấn
-        results = Boundary.find(query)
-        # Tạo một danh sách dưới dạng từ điển
-        boundaries_list = [{'id': boundary['id'], 
-                            'camId': boundary['camId'], 
-                            'pointL': boundary['pointL'], 
-                            'pointR': boundary['pointR'], 
-                            'pointDirect': boundary['pointDirect']} 
-                            for boundary in results]
-
+        boundaries_list = get_boundary_and_counter(query)
         # Chuyển đổi danh sách thành JSON và trả về
         return jsonify({'boundaries': boundaries_list}), 200
 
@@ -88,6 +91,8 @@ def init_roiboundary_bp(mongo):
             if key != 'id':
                 update_data[key] = data[key]
         if Boundary.update_or_insert(id, **update_data):
+            camId = data.get("camId")
+            get_boundary_and_counter({"camId": camId})
             return jsonify({'message': 'Update Insert successful'}), 200
         else:
             return jsonify({'error': 'Failed to update Insert data'}), 400
