@@ -20,7 +20,7 @@ def init_roiboundary_bp(mongo):
         # Lấy dữ liệu từ request
         data = request.json
         # Kiểm tra nếu id đã được cung cấp trong dữ liệu
-        if id is None:
+        if data.get('id') is None:
             return jsonify({'error': 'Missing id in request data'}), 400
         Boundary.insert(data)
         return jsonify({'message': 'Insert or update successful'}), 200
@@ -66,7 +66,7 @@ def init_roiboundary_bp(mongo):
         query = {'id': id}
         # Thực hiện xóa
         result = Boundary.delete(query)
-        if result.deleted_count > 0:
+        if result.acknowledged:
             camId = data.get('camId')
             get_boundary_and_counter({'camId': camId})
             return jsonify({'message': 'Delete successful'}), 200
@@ -107,12 +107,23 @@ def init_roiboundary_bp(mongo):
         data = request.json
         return jsonify({"message": "Received data successfully", "data": data})
     
+    def get_roi_and_counter(query):
+        # Thực hiện truy vấn
+        results = Roi.find(query)
+        # Tạo một danh sách dưới dạng từ điển
+        rois_list = [{'id': roi['id'], 
+                    'camId': roi['camId'], 
+                    'points': roi['points']} 
+                    for roi in results]
+        Roi.get_polygon_annotators(rois_list)
+        return rois_list
+
     @roiboundary_bp.route('/insert_roi', methods=['POST'])
     def insert_roi():
         # Lấy dữ liệu từ request
         data = request.json
         # Kiểm tra nếu id đã được cung cấp trong dữ liệu
-        if id is None:
+        if data.get('id') is None:
             return jsonify({'error': 'Missing id in request data'}), 400
         Roi.insert(data)
         return jsonify({'message': 'Insert or update successful'}), 200
@@ -137,15 +148,7 @@ def init_roiboundary_bp(mongo):
     def get_rois():
         data = request.json
         query = {key: value for key, value in data.items() if value is not None}
-        # Thực hiện truy vấn
-        results = Roi.find(query)
-        # Tạo một danh sách dưới dạng từ điển
-        rois_list = [{  'id': roi['id'], 
-                        'camId': roi['camId'], 
-                        'points': roi['points']}
-                        for roi in results]
-
-        # Chuyển đổi danh sách thành JSON và trả về
+        rois_list = get_roi_and_counter(query)
         return jsonify({'rois': rois_list}), 200
 
     @roiboundary_bp.route('/update_insert_roi', methods=['POST'])
@@ -159,6 +162,8 @@ def init_roiboundary_bp(mongo):
             if key != 'id':
                 update_data[key] = data[key]
         if Roi.update_or_insert(id, **update_data):
+            camId = data.get("camId")
+            get_roi_and_counter({"camId": camId})
             return jsonify({'message': 'Update Insert successful'}), 200
         else:
             return jsonify({'error': 'Failed to update Insert data'}), 400
@@ -173,7 +178,9 @@ def init_roiboundary_bp(mongo):
         query = {'id': id}
         # Thực hiện xóa
         result = Roi.delete(query)
-        if result.deleted_count > 0:
+        if result.acknowledged:
+            camId = data.get('camId')
+            get_roi_and_counter({'camId': camId})
             return jsonify({'message': 'Delete successful'}), 200
         else:
             return jsonify({'error': 'Failed to delete data'}), 400

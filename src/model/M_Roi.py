@@ -1,5 +1,12 @@
+import supervision as sv
+import numpy as np
+from config import FRAME_WIDTH, FRAME_HEIGHT
+from supervision.draw.color import Color
 class Roi:
     mongo = None
+    polygon_counters = []
+    polygon_annotators = []
+
     @classmethod
     def init_mongo(cls, mongo):
         cls.mongo = mongo
@@ -43,3 +50,10 @@ class Roi:
     @classmethod
     def find(cls, query):
         return list(cls.mongo.db.roi.find(query))
+
+    @classmethod
+    def get_polygon_annotators(cls, roi_list):
+        points = [roi['points'] for roi in roi_list]
+        points = np.array([[[coord['x'] + 7, coord['y'] + 7] for coord in polygon] for polygon in points])
+        cls.polygon_counters = [sv.PolygonZone(point, [FRAME_WIDTH, FRAME_HEIGHT]) for point in points]
+        cls.polygon_annotators = [sv.PolygonZoneAnnotator(counter, color=Color.RED, thickness=2, text_padding=5) for counter in cls.polygon_counters]
