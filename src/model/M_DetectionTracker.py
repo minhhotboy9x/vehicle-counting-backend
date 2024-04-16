@@ -2,11 +2,11 @@ from ultralytics import YOLO
 import os
 import cv2
 from model.M_Boundary import Boundary
-import torch
+import numpy as np
 from random import randint
 from config import FRAME_WIDTH, FRAME_HEIGHT
-from model.sort import *
 import supervision as sv
+from pymongo import UpdateOne
 from collections import defaultdict, deque
 
 def draw_boxes(img, bbox, identities=None, categories=None, names=None, offset=(0, 0)):
@@ -47,36 +47,20 @@ class DetectionTracker:
     def reset_track(self):
         self.tracker.reset()
 
-    # def detect_track(self, frame):
-    #     r = self.model(frame, verbose=False, device=0)[0]
-    #     box = r.boxes.xyxy
-    #     conf = r.boxes.conf.unsqueeze(1)
-    #     cls = r.boxes.cls.unsqueeze(1)
-    #     dets = torch.cat((box, conf, cls), dim=1).cpu().numpy()
-    #     tracked_dets = self.tracker.update(dets)
-    #     if len(tracked_dets) > 0:
-    #         bbox_xyxy = tracked_dets[:,:4]
-    #         identities = tracked_dets[:, 8]
-    #         categories = tracked_dets[:, 4]
-    #         draw_boxes(frame, bbox_xyxy, identities, categories)
-    #     return frame
-    
+    def count_draw(self, frame, detections):
 
-
-    def detect_track(self, frame, cam_id):
-        results = self.model(frame, verbose=False)[0]
-
-        detections = sv.Detections(xyxy=results.boxes.xyxy.cpu().numpy(),
-                                confidence=results.boxes.conf.cpu().numpy(),
-                                class_id=results.boxes.cls.cpu().numpy().astype(int))
-
-        detections = detections[np.isin(detections.class_id, [2, 1, 0])]
-        detections = self.tracker.update_with_detections(detections=detections)
-
+        line_counter_db_upd = []
         # line_counter
         for line_counter in Boundary.line_counters:
             line_counter.trigger(detections=detections)
-
+            line_counter_db_upd.append(UpdateOne( 
+                {'id': line_counter.id},
+                {'$set': {
+                    'in': line_counter.in_count,
+                    'out': line_counter.out_count
+                }}))
+            
+        Boundary.update_many(line_counter_db_upd)
         # draw boxes and labels
         bounding_box_annotator = sv.BoundingBoxAnnotator()
         label_annotator = sv.LabelAnnotator(text_padding=5)
@@ -92,8 +76,23 @@ class DetectionTracker:
         # draw line
         for line_annotator, line_counter in zip(Boundary.line_annotators, Boundary.line_counters):
             annotated_frame = line_annotator.annotate(frame=annotated_frame, line_counter=line_counter)
-
+        
         return annotated_frame
+
+
+
+    def detect_track(self, frame, cam_id):
+        results = self.model(frame, verbose=False)[0]
+
+        detections = sv.Detections(xyxy=results.boxes.xyxy.cpu().numpy(),
+                                confidence=results.boxes.conf.cpu().numpy(),
+                                class_id=results.boxes.cls.cpu().numpy().astype(int))
+
+        detections = detections[np.isin(detections.class_id, [2, 1, 0])]
+        detections = self.tracker.update_with_detections(detections=detections)
+
+
+        return self.count_draw(frame, detections)
 
     # Function to generate frames from video
     def generate_frames(self, cam_id):

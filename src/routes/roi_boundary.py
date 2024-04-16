@@ -46,11 +46,13 @@ def init_roiboundary_bp(mongo):
         results = Boundary.find(query)
         # Tạo một danh sách dưới dạng từ điển
         boundaries_list = [{'id': boundary['id'], 
-                            'camId': boundary['camId'], 
-                            'pointL': boundary['pointL'], 
-                            'pointR': boundary['pointR'], 
-                            'pointDirect': boundary['pointDirect']} 
-                            for boundary in results]
+                    'camId': boundary['camId'], 
+                    'in': boundary.get('in') if boundary.get('in') is not None else 0,
+                    'out': boundary.get('out') if boundary.get('out') is not None else 0,
+                    'pointL': boundary['pointL'], 
+                    'pointR': boundary['pointR'], 
+                    'pointDirect': boundary['pointDirect']} 
+                    for boundary in results]
         Boundary.get_line_annotators(boundaries_list)
         return boundaries_list
 
@@ -64,8 +66,9 @@ def init_roiboundary_bp(mongo):
         query = {'id': id}
         # Thực hiện xóa
         result = Boundary.delete(query)
-        get_boundary_and_counter(query)
         if result.deleted_count > 0:
+            camId = data.get('camId')
+            get_boundary_and_counter({'camId': camId})
             return jsonify({'message': 'Delete successful'}), 200
         else:
             return jsonify({'error': 'Failed to delete data'}), 400

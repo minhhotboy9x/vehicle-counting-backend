@@ -1,6 +1,8 @@
 import supervision as sv
-from supervision.geometry.core import Point
-
+from supervision.geometry.core import Point, Position
+from supervision.draw.color import Color
+from pymongo import UpdateOne
+from model.utils import ccw
 class Boundary:
     mongo = None
     line_counters = []
@@ -50,9 +52,18 @@ class Boundary:
             return result.acknowledged
         else:
             # Nếu không tồn tại bản ghi, thực hiện insert
-            new_data = {'id': id, **kwargs}
+            new_data = {'id': id,
+                        'in': 0,
+                        'out': 0,
+                         **kwargs}
             result = cls.mongo.db.boundary.insert_one(new_data)
             return result.acknowledged
+    
+    @classmethod
+    def update_many(cls, update_operations: list[UpdateOne]):
+        if update_operations == []:
+            return
+        cls.mongo.db.boundary.bulk_write(update_operations)
 
     @classmethod
     def delete(cls, query):
@@ -64,9 +75,19 @@ class Boundary:
     
     @classmethod
     def get_line_annotators(cls, boundaries_list):
-        cls.line_counters = [sv.LineZone(Point(boundary['pointL']['x'] + 7.5, boundary['pointL']['y'] + 7.5), 
-                                         Point(boundary['pointR']['x'] + 7.5, boundary['pointR']['y'] + 7.5)) 
-                             for boundary in boundaries_list]
-        
-        cls.line_annotators = [sv.LineZoneAnnotator(text_thickness = 1, text_padding=5) for _ in boundaries_list]
+        cls.line_counters = []
+        cls.line_annotators = []
+        for boundary in boundaries_list:
+            point1 = Point(boundary['pointL']['x'] + 7.5, boundary['pointL']['y'] + 7.5)
+            point2 = Point(boundary['pointR']['x'] + 7.5, boundary['pointR']['y'] + 7.5)
+            if ccw(point1, point2) > 0:
+                point1, point2 = point2, point1
+            linezone = sv.LineZone(point1, point2,
+                                [Position.BOTTOM_CENTER, Position.TOP_CENTER])
+            # Thêm linezone đã chỉnh sửa vào danh sách line_counters
+            linezone.id = boundary['id']
+            linezone.in_count = boundary.get('in') if boundary.get('in') is not None else 0
+            linezone.out_count = boundary.get('out') if boundary.get('out') is not None else 0
+            cls.line_counters.append(linezone)
+            cls.line_annotators.append(sv.LineZoneAnnotator(thickness = 1, text_thickness=1, text_padding=5))
         
