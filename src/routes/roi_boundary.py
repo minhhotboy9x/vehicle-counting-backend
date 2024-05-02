@@ -81,6 +81,23 @@ def init_roiboundary_bp(mongo):
         boundaries_list = get_boundary_and_counter(query)
         # Chuyển đổi danh sách thành JSON và trả về
         return jsonify({'boundaries': boundaries_list}), 200
+    
+    @roiboundary_bp.route('/get_boundary_property', methods=['POST'])
+    def get_boundary_property():
+        data = request.json
+        query = {key: value for key, value in data.items() if value is not None}
+        results = Boundary.find(query)
+        # Tạo một danh sách dưới dạng từ điển
+        boundaries_list = [{'id': boundary['id'], 
+                    'camId': boundary['camId'], 
+                    'in': boundary.get('in') if boundary.get('in') is not None else 0,
+                    'out': boundary.get('out') if boundary.get('out') is not None else 0,
+                    'pointL': boundary['pointL'], 
+                    'pointR': boundary['pointR'], 
+                    'pointDirect': boundary['pointDirect']} 
+                    for boundary in results]
+        # Chuyển đổi danh sách thành JSON và trả về
+        return jsonify({'boundaries': boundaries_list}), 200
 
 
     @roiboundary_bp.route('/update_insert_boundary', methods=['POST'])

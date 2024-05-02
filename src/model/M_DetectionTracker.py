@@ -78,7 +78,6 @@ class DetectionTracker:
         detections = detections[np.isin(detections.class_id, [2, 1, 0])]
         detections = self.tracker.update_with_detections(detections=detections)
 
-
         return self.count_draw(frame, detections)
 
     # Function to generate frames from video
