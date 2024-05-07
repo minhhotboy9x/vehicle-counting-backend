@@ -5,10 +5,13 @@ from model.M_Boundary import Boundary
 from model.M_Roi import Roi
 import numpy as np
 from random import randint
-from config import FRAME_WIDTH, FRAME_HEIGHT
+from config import FRAME_WIDTH, FRAME_HEIGHT, JETSON_URL
 import supervision as sv
 from pymongo import UpdateOne
 from collections import defaultdict, deque
+import requests
+import base64
+import json
 
 class DetectionTracker:
     def __init__(self, model_path) -> None:
@@ -70,7 +73,6 @@ class DetectionTracker:
 
     def detect_track(self, frame, cam_id):
         results = self.model(frame, verbose=False)[0]
-
         detections = sv.Detections(xyxy=results.boxes.xyxy.cpu().numpy(),
                                 confidence=results.boxes.conf.cpu().numpy(),
                                 class_id=results.boxes.cls.cpu().numpy().astype(int))
@@ -78,6 +80,23 @@ class DetectionTracker:
         detections = detections[np.isin(detections.class_id, [2, 1, 0])]
         detections = self.tracker.update_with_detections(detections=detections)
 
+        return self.count_draw(frame, detections)
+
+    def get_track(self, frame, results):
+        if not results['boxes']:
+            empty_boxes = np.empty((0, 4))
+            empty_confidence = np.empty(0)
+            empty_class_ids = np.empty(0, dtype=int)
+            detections = sv.Detections(xyxy=empty_boxes,
+                                       confidence=empty_confidence,
+                                       class_id=empty_class_ids)
+        else:
+            detections = sv.Detections(xyxy=np.array(results['boxes']),
+                                    confidence=np.array(results['scores']),
+                                    class_id=np.array(results['class_ids']).astype(int))
+
+        detections = detections[np.isin(detections.class_id, [2, 1, 0])]
+        detections = self.tracker.update_with_detections(detections=detections)
         return self.count_draw(frame, detections)
 
     # Function to generate frames from video
@@ -99,3 +118,34 @@ class DetectionTracker:
                     b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         cap.release()
     
+    def get_jetson_frames(self, cam_id):
+        start_part = b'--frame\r\nContent-Type: application/json\r\n\r\n'.decode("utf-8")
+        end_part = b'endpart\r\n'.decode("utf-8")
+        url = JETSON_URL + f'detecting/{cam_id}'
+        with requests.get(url, stream=True) as response:
+            buffer = ''
+            for chunk in response.iter_content(chunk_size=1024):
+                chunk = chunk.decode("utf-8")
+                # Accumulate the chunk to the buffer
+                buffer += chunk
+                # Process each part when the boundary is found
+                end_index = buffer.find(end_part)
+                if buffer.startswith(start_part) and end_index != -1:
+                    buffer = buffer[len(start_part):]
+                    end_index -= len(start_part)
+                    json_part = buffer[:end_index]
+                    json_part = json.loads(json_part)
+                    frame_data = base64.b64decode(json_part['img'])
+                    # Convert the image data to numpy array
+                    frame_np = np.frombuffer(frame_data, dtype=np.uint8)
+                    # Decode the numpy array as an image
+                    frame_decode = cv2.imdecode(frame_np, cv2.IMREAD_COLOR)
+                    # tracking and draw
+                    frame_decode = self.get_track(frame_decode, json_part) 
+                    ret, frame_buffer = cv2.imencode('.jpg', frame_decode)
+                    frame = frame_buffer.tobytes()
+
+                    buffer = buffer[end_index + len(end_part):]
+                    yield (b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        

@@ -10,3 +10,5 @@ ACCOUNT_COLLECTION = 'Account'
 
 FRAME_WIDTH = 800
 FRAME_HEIGHT = 600
+
+JETSON_URL = "http://localhost:5001/"
