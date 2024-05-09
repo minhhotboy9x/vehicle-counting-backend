@@ -17,6 +17,7 @@ class DetectionTracker:
     def __init__(self, model_path) -> None:
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack(frame_rate=25)
+        self.tracker.reset()
 
     def update_model(self, new_model_path):
         self.model = YOLO(new_model_path)
