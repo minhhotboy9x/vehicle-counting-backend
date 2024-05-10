@@ -16,5 +16,5 @@ def update_model():
 
 @streaming_bp.route('/streaming/<int:cam_id>')
 def stream_cam(cam_id):
-    # return Response(det_tracker.generate_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
-    return Response(det_tracker.get_jetson_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(det_tracker.generate_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
+    # return Response(det_tracker.get_jetson_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')

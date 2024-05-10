@@ -201,3 +201,16 @@ def init_roiboundary_bp(mongo):
             return jsonify({'message': 'Delete successful'}), 200
         else:
             return jsonify({'error': 'Failed to delete data'}), 400
+        
+    @roiboundary_bp.route('/get_roi_property', methods=['POST'])
+    def get_roi_property():
+        data = request.json
+        query = {key: value for key, value in data.items() if value is not None}
+        results = Roi.find(query)
+        rois_list = [{'id': roi['id'], 
+                    'camId': roi['camId'], 
+                    'points': roi['points']} 
+                    for roi in results]
+        # print(rois_list, query)
+        # Chuyển đổi danh sách thành JSON và trả về
+        return jsonify({'rois': rois_list}), 200
