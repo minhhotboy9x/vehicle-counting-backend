@@ -209,7 +209,7 @@ def init_roiboundary_bp(mongo):
         results = Roi.find(query)
         rois_list = [{'id': roi['id'], 
                     'camId': roi['camId'], 
-                    'points': roi['points']} 
+                    'mapping points': roi['mapping points']} 
                     for roi in results]
         # print(rois_list, query)
         # Chuyển đổi danh sách thành JSON và trả về

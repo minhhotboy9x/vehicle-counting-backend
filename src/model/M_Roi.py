@@ -39,7 +39,14 @@ class Roi:
             return result.acknowledged
         else:
             # Nếu không tồn tại bản ghi, thực hiện insert
-            new_data = {'id': id, **kwargs}
+            new_data = {'id': id,
+                        'mapping points': [
+                                {"x": 100, "y": 100},
+                                {"x": 200, "y": 100},
+                                {"x": 200, "y": 200},
+                                {"x": 100, "y": 200}
+                            ],
+                         **kwargs}
             result = cls.mongo.db.roi.insert_one(new_data)
             return result.acknowledged
         
