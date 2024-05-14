@@ -130,7 +130,8 @@ def init_roiboundary_bp(mongo):
         # Tạo một danh sách dưới dạng từ điển
         rois_list = [{'id': roi['id'], 
                     'camId': roi['camId'], 
-                    'points': roi['points']} 
+                    'points': roi['points'],
+                    'mapping points': roi['mapping points']} 
                     for roi in results]
         Roi.get_polygon_annotators(rois_list)
         return rois_list
