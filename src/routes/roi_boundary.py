@@ -210,6 +210,7 @@ def init_roiboundary_bp(mongo):
         results = Roi.find(query)
         rois_list = [{'id': roi['id'], 
                     'camId': roi['camId'], 
+                    'speed limit': roi["speed limit"],
                     'mapping points': roi['mapping points']} 
                     for roi in results]
         # print(rois_list, query)

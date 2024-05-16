@@ -50,6 +50,7 @@ class Roi:
                                 {"x": 200, "y": 200},
                                 {"x": 100, "y": 200}
                             ],
+                        'speed limit': 90,
                          **kwargs}
             result = cls.mongo.db.roi.insert_one(new_data)
             return result.acknowledged

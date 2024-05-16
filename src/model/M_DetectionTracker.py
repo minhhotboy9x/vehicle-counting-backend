@@ -21,6 +21,13 @@ class DetectionTracker:
         self.tracker.reset()
         # coordinate for speed estimation
         self.coordinates = []
+        self.bounding_box_annotator = sv.BoxCornerAnnotator(color_lookup=sv.ColorLookup.TRACK)
+        self.label_annotator = sv.LabelAnnotator(text_padding=5, 
+                                            text_position=sv.Position.BOTTOM_CENTER,
+                                            color_lookup=sv.ColorLookup.TRACK)
+        self.trace_annotator = sv.TraceAnnotator(thickness=2, trace_length=FPS*2, 
+                                    position=sv.Position.BOTTOM_CENTER,
+                                    color_lookup=sv.ColorLookup.TRACK)
 
     def update_model(self, new_model_path):
         self.model = YOLO(new_model_path)
@@ -28,6 +35,13 @@ class DetectionTracker:
     def reset_track(self):
         self.coordinates = []
         self.tracker.reset()
+        self.bounding_box_annotator = sv.BoxCornerAnnotator(color_lookup=sv.ColorLookup.TRACK)
+        self.label_annotator = sv.LabelAnnotator(text_padding=5, 
+                                            text_position=sv.Position.BOTTOM_CENTER,
+                                            color_lookup=sv.ColorLookup.TRACK)
+        self.trace_annotator = sv.TraceAnnotator(thickness=2, trace_length=FPS*2, 
+                                    position=sv.Position.BOTTOM_CENTER,
+                                    color_lookup=sv.ColorLookup.TRACK)
 
     def count_draw(self, frame, detections):
         line_counter_db_upd = []
@@ -50,7 +64,6 @@ class DetectionTracker:
         for i in range(len(detection_poly_points)):
             detection_poly_points[i] = transform_points(Roi.transformers[i], detection_poly_points[i])
         
-
         if select_detection.shape[0] > 0:
             detections = detections[select_detection]
         # line_counter
@@ -83,18 +96,17 @@ class DetectionTracker:
                     k = [index for index, label in enumerate(labels) if label.startswith(f"#{tracker_id}")][0]
                     labels[k] += f" {int(speed)} km/h"
         
-
         Boundary.update_many(line_counter_db_upd)
-        # draw boxes and labels
-        bounding_box_annotator = sv.BoxCornerAnnotator()
-        label_annotator = sv.LabelAnnotator(text_padding=5)
         
         annotated_frame = frame.copy()
 
-        annotated_frame = bounding_box_annotator.annotate(
+        annotated_frame = self.trace_annotator.annotate(
+            scene=annotated_frame, detections=detections
+        )
+        annotated_frame = self.bounding_box_annotator.annotate(
             scene=annotated_frame, detections=detections)
         
-        annotated_frame = label_annotator.annotate(
+        annotated_frame = self.label_annotator.annotate(
             scene=annotated_frame, detections=detections, labels=labels)
 
         # draw line
@@ -106,7 +118,6 @@ class DetectionTracker:
             annotated_frame = roi_annotator.annotate(annotated_frame)
         
         return annotated_frame
-
 
 
     def detect_track(self, frame, cam_id):
@@ -142,7 +153,6 @@ class DetectionTracker:
         self.reset_track()
         video_path = f'./imgs/{cam_id}.mp4'
         cap = cv2.VideoCapture(video_path)
-
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
