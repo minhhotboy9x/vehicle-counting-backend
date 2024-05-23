@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify
 from model.M_Boundary import Boundary
 from model.M_Roi import Roi
+from model.M_Violation import Violation
 
 roiboundary_bp = Blueprint('roi_boundary', __name__)
 
 def init_roiboundary_bp(mongo):
     Boundary.init_mongo(mongo)
     Roi.init_mongo(mongo)
-
+    Violation.init_mongo(mongo)
     # Boundary endpoint
 
     @roiboundary_bp.route('/testboundary', methods=['POST'])

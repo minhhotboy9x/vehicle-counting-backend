@@ -5,14 +5,19 @@ from model.M_Boundary import Boundary
 from model.M_Roi import Roi
 from model.utils import transform_points, calculate_distance
 import numpy as np
-from random import randint
 from config import FRAME_WIDTH, FRAME_HEIGHT, JETSON_URL, FPS
 import supervision as sv
+from supervision.draw.utils import draw_text
+from supervision.geometry.core import Point
+from supervision.draw.color import Color
 from pymongo import UpdateOne
 from collections import defaultdict, deque
+import warnings
 import requests
 import base64
 import json
+import time
+
 
 class DetectionTracker:
     def __init__(self, model_path) -> None:
@@ -119,16 +124,18 @@ class DetectionTracker:
         
         return annotated_frame
 
-
     def detect_track(self, frame, cam_id):
+        start_time = time.time()
         results = self.model(frame, verbose=False)[0]
         detections = sv.Detections(xyxy=results.boxes.xyxy.cpu().numpy(),
                                 confidence=results.boxes.conf.cpu().numpy(),
                                 class_id=results.boxes.cls.cpu().numpy().astype(int))
 
-        detections = detections[np.isin(detections.class_id, [2, 1, 0])]
+        detections = detections[np.isin(detections.class_id, [2, 1, 0, 5, 6])]
         detections = self.tracker.update_with_detections(detections=detections)
-
+        end_time = time.time()
+        real_fps = int(1/(end_time - start_time))
+        frame = draw_text(scene=frame, text=f"FPS: {real_fps}", text_anchor=Point(50, 20), text_padding=5, background_color=Color.WHITE)
         return self.count_draw(frame, detections)
 
     def get_track(self, frame, results):
@@ -144,8 +151,11 @@ class DetectionTracker:
                                     confidence=np.array(results['scores']),
                                     class_id=np.array(results['class_ids']).astype(int))
 
-        detections = detections[np.isin(detections.class_id, [2, 1, 0])]
-        detections = self.tracker.update_with_detections(detections=detections)
+        detections = detections[np.isin(detections.class_id, [2, 1, 0, 5, 6])]
+        try:
+            detections = self.tracker.update_with_detections(detections=detections)
+        except ValueError as e:
+            print(detections) 
         return self.count_draw(frame, detections)
 
     # Function to generate frames from video
@@ -166,35 +176,29 @@ class DetectionTracker:
                 yield (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         cap.release()
-    
+        
     def get_jetson_frames(self, cam_id):
         start_part = b'--frame\r\nContent-Type: application/json\r\n\r\n'.decode("utf-8")
         end_part = b'endpart\r\n'.decode("utf-8")
         url = JETSON_URL + f'detecting/{cam_id}'
+        print(f'-----call cam ID {cam_id}-------')
         with requests.get(url, stream=True) as response:
-            buffer = ''
-            for chunk in response.iter_content(chunk_size=1024):
-                chunk = chunk.decode("utf-8")
-                # Accumulate the chunk to the buffer
-                buffer += chunk
-                # Process each part when the boundary is found
-                end_index = buffer.find(end_part)
-                if buffer.startswith(start_part) and end_index != -1:
-                    buffer = buffer[len(start_part):]
-                    end_index -= len(start_part)
-                    json_part = buffer[:end_index]
-                    json_part = json.loads(json_part)
-                    frame_data = base64.b64decode(json_part['img'])
-                    # Convert the image data to numpy array
-                    frame_np = np.frombuffer(frame_data, dtype=np.uint8)
-                    # Decode the numpy array as an image
-                    frame_decode = cv2.imdecode(frame_np, cv2.IMREAD_COLOR)
-                    # tracking and draw
-                    frame_decode = self.get_track(frame_decode, json_part) 
-                    ret, frame_buffer = cv2.imencode('.jpg', frame_decode)
-                    frame = frame_buffer.tobytes()
+            if response.status_code == 200:
+                start_time = time.time()
+                for line in response.iter_lines():
+                    if line:
+                        json_part = json.loads(line.decode('utf-8').replace('data: ', ''))
+                        frame_data = base64.b64decode(json_part['img'])
+                        frame_np = np.frombuffer(frame_data, dtype=np.uint8)
+                        # Decode the numpy array as an image
+                        frame_decode = cv2.imdecode(frame_np, cv2.IMREAD_COLOR)
+                        end_time = time.time()
+                        real_fps = int(1/(end_time - start_time))
+                        start_time = time.time()
 
-                    buffer = buffer[end_index + len(end_part):]
-                    yield (b'--frame\r\n'
-                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-        
+                        frame_decode = draw_text(scene=frame_decode, text=f"FPS: {real_fps}", text_anchor=Point(50, 20), text_padding=5, background_color=Color.WHITE)
+                        frame_decode = self.get_track(frame_decode, json_part) 
+                        ret, frame_buffer = cv2.imencode('.jpg', frame_decode)
+                        frame = frame_buffer.tobytes()
+                        yield (b'--frame\r\n'
+                            b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')

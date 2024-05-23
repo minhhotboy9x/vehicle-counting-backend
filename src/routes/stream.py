@@ -5,7 +5,7 @@ from model.M_DetectionTracker import DetectionTracker
 
 streaming_bp = Blueprint('streaming', __name__)
 
-det_tracker = DetectionTracker('models/yolov8n.pt')
+det_tracker = DetectionTracker('models/v8n_relu_repc3_VOC.pt')
 
 @streaming_bp.route('/update_model')
 def update_model():
@@ -16,5 +16,5 @@ def update_model():
 
 @streaming_bp.route('/streaming/<int:cam_id>')
 def stream_cam(cam_id):
-    return Response(det_tracker.generate_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
-    # return Response(det_tracker.get_jetson_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
+    # return Response(det_tracker.generate_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(det_tracker.get_jetson_frames(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
