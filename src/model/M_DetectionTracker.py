@@ -12,15 +12,15 @@ from supervision.geometry.core import Point
 from supervision.draw.color import Color
 from pymongo import UpdateOne
 from collections import defaultdict, deque
-import warnings
 import requests
 import base64
 import json
 import time
 
-
 class DetectionTracker:
     def __init__(self, model_path) -> None:
+        self.current_response = None
+        self.session = requests.Session()
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack(frame_rate=FPS)
         self.tracker.reset()
@@ -59,7 +59,7 @@ class DetectionTracker:
             tmp_detection = detections[tmp]
             if tmp.shape[0] > 0:
                 select_detection |= tmp
-                # thứ tự của triggered detectionƠ
+                # thứ tự của triggered detection
                 detection_poly_points.append(tmp_detection.get_anchors_coordinates(
                                         anchor=sv.Position.BOTTOM_CENTER))
             else:
@@ -178,14 +178,18 @@ class DetectionTracker:
         cap.release()
         
     def get_jetson_frames(self, cam_id):
-        start_part = b'--frame\r\nContent-Type: application/json\r\n\r\n'.decode("utf-8")
-        end_part = b'endpart\r\n'.decode("utf-8")
+        if self.current_response:
+            self.current_response.close()
         url = JETSON_URL + f'detecting/{cam_id}'
         print(f'-----call cam ID {cam_id}-------')
+        
+        self.current_response = self.session.get(url, stream=True)
+        response = self.current_response
+
         with requests.get(url, stream=True) as response:
             if response.status_code == 200:
                 start_time = time.time()
-                for line in response.iter_lines():
+                for line in response.iter_lines(chunk_size=8192):
                     if line:
                         json_part = json.loads(line.decode('utf-8').replace('data: ', ''))
                         frame_data = base64.b64decode(json_part['img'])
@@ -193,9 +197,9 @@ class DetectionTracker:
                         # Decode the numpy array as an image
                         frame_decode = cv2.imdecode(frame_np, cv2.IMREAD_COLOR)
                         end_time = time.time()
-                        real_fps = int(1/(end_time - start_time))
+                        real_fps = round(1/(end_time - start_time), 1)
                         start_time = time.time()
-
+                        frame_decode = cv2.resize(frame_decode, (FRAME_WIDTH, FRAME_HEIGHT))
                         frame_decode = draw_text(scene=frame_decode, text=f"FPS: {real_fps}", text_anchor=Point(50, 20), text_padding=5, background_color=Color.WHITE)
                         frame_decode = self.get_track(frame_decode, json_part) 
                         ret, frame_buffer = cv2.imencode('.jpg', frame_decode)
