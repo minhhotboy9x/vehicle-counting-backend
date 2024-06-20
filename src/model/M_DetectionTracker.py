@@ -19,6 +19,7 @@ import time
 
 class DetectionTracker:
     def __init__(self, model_path) -> None:
+        self.offset = [[0, 0], [FRAME_WIDTH, FRAME_HEIGHT]] # offset for crop image
         self.current_response = None
         self.session = requests.Session()
         self.model = YOLO(model_path)
@@ -33,9 +34,35 @@ class DetectionTracker:
         self.trace_annotator = sv.TraceAnnotator(thickness=2, trace_length=FPS*2, 
                                     position=sv.Position.BOTTOM_CENTER,
                                     color_lookup=sv.ColorLookup.TRACK)
+        self.get_crop_points()
 
     def update_model(self, new_model_path):
         self.model = YOLO(new_model_path)
+
+    def get_crop_points(self):
+        flag = False
+        xmax, ymax, xmin, ymin = 0, 0, FRAME_WIDTH, FRAME_HEIGHT
+        for roi_counter in Roi.polygon_counters:
+            flag = True
+            xmin = min(xmin, np.min(roi_counter.polygon[:, 0]))
+            ymin = min(ymin, np.min(roi_counter.polygon[:, 1]))
+            xmax = max(xmax, np.max(roi_counter.polygon[:, 0]))
+            ymax = max(ymax, np.max(roi_counter.polygon[:, 1]))
+        if not flag:
+            xmax, ymax, xmin, ymin = FRAME_WIDTH, FRAME_HEIGHT, 0, 0
+        xmin = max(xmin-20, 0)
+        ymin = max(ymin-20, 0)
+        xmax = min(xmax+20, FRAME_WIDTH)
+        ymax = min(ymax+20, FRAME_HEIGHT)
+        url = JETSON_URL+ 'crop_points'
+        params = {
+            'xmin': xmin,
+            'ymin': ymin,
+            'xmax': xmax,
+            'ymax': ymax
+        }
+        response = requests.get(url, params=params) 
+        print(response, xmin, ymin, xmax, ymax)
 
     def reset_track(self):
         self.coordinates = []
@@ -182,7 +209,7 @@ class DetectionTracker:
             self.current_response.close()
         url = JETSON_URL + f'detecting/{cam_id}'
         print(f'-----call cam ID {cam_id}-------')
-        
+        self.get_crop_points()
         self.current_response = self.session.get(url, stream=True)
         response = self.current_response
 

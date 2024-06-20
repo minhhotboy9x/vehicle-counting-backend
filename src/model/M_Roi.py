@@ -4,6 +4,7 @@ from config import FRAME_WIDTH, FRAME_HEIGHT
 from supervision.draw.color import Color
 import cv2
 
+
 class Roi:
     mongo = None
     polygon_counters = []
@@ -40,7 +41,6 @@ class Roi:
             # Nếu tồn tại bản ghi, thực hiện cập nhật
             new_values = {'$set': kwargs}
             result = cls.mongo.db.roi.update_one(query, new_values)
-            return result.acknowledged
         else:
             # Nếu không tồn tại bản ghi, thực hiện insert
             new_data = {'id': id,
@@ -53,7 +53,8 @@ class Roi:
                         'speed limit': 90,
                          **kwargs}
             result = cls.mongo.db.roi.insert_one(new_data)
-            return result.acknowledged
+        
+        return result.acknowledged
         
     @classmethod
     def delete(cls, query):

@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from routes.stream import det_tracker
 from model.M_Boundary import Boundary
 from model.M_Roi import Roi
 from model.M_Violation import Violation
@@ -145,6 +146,7 @@ def init_roiboundary_bp(mongo):
         if data.get('id') is None:
             return jsonify({'error': 'Missing id in request data'}), 400
         Roi.insert(data)
+        det_tracker.get_crop_points()
         return jsonify({'message': 'Insert or update successful'}), 200
     
     @roiboundary_bp.route('/update_roi', methods=['POST'])
@@ -159,6 +161,7 @@ def init_roiboundary_bp(mongo):
                 update_data[key] = data[key]
 
         if Roi.update(id, **update_data):
+            det_tracker.get_crop_points()
             return jsonify({'message': 'Update successful'}), 200
         else:
             return jsonify({'error': 'Failed to update data'}), 400
@@ -168,6 +171,7 @@ def init_roiboundary_bp(mongo):
         data = request.json
         query = {key: value for key, value in data.items() if value is not None}
         rois_list = get_roi_and_counter(query)
+        det_tracker.get_crop_points()
         return jsonify({'rois': rois_list}), 200
 
     @roiboundary_bp.route('/update_insert_roi', methods=['POST'])
@@ -183,6 +187,7 @@ def init_roiboundary_bp(mongo):
         if Roi.update_or_insert(id, **update_data):
             camId = data.get("camId")
             get_roi_and_counter({"camId": camId})
+            det_tracker.get_crop_points()
             return jsonify({'message': 'Update Insert successful'}), 200
         else:
             return jsonify({'error': 'Failed to update Insert data'}), 400
@@ -200,6 +205,7 @@ def init_roiboundary_bp(mongo):
         if result.acknowledged:
             camId = data.get('camId')
             get_roi_and_counter({'camId': camId})
+            det_tracker.get_crop_points()
             return jsonify({'message': 'Delete successful'}), 200
         else:
             return jsonify({'error': 'Failed to delete data'}), 400
