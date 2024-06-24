@@ -114,8 +114,9 @@ class DetectionTracker:
         # save tracker_id each roi
         for i in range(len(Roi.polygon_counters)):
             self.coordinates.append(defaultdict(lambda: deque(maxlen=FPS)))
-            for tracker_id, [x, y] in zip(detections.tracker_id, detection_poly_points[i]):
-                self.coordinates[i][tracker_id].append([x, y])
+            if detections.tracker_id is not None:
+                for tracker_id, [x, y] in zip(detections.tracker_id, detection_poly_points[i]):
+                    self.coordinates[i][tracker_id].append([x, y])
         
         # calculate speed
         for i in range(len(Roi.polygon_counters)):
@@ -229,11 +230,11 @@ class DetectionTracker:
                         start_time = time.time()
                         frame_decode = cv2.resize(frame_decode, (FRAME_WIDTH, FRAME_HEIGHT))
                         # Draw FPS
-                        frame_decode = draw_text(scene=frame_decode, text=f"FPS: {real_fps}", 
+                        frame_decode = draw_text(scene=frame_decode, text=f"FPS: {real_fps}", text_color = Color.RED, text_scale = 0.6,
                                                  text_anchor=Point(50, 20), text_padding=5, background_color=Color.WHITE)
                         # Draw Model name
                         frame_decode = draw_text(scene=frame_decode, text=f"Model: {json_part['model']}", 
-                                                 text_anchor=Point(350, 40), text_padding=5, background_color=Color.WHITE)
+                                                 text_anchor=Point(350, 50), text_padding=5, background_color=Color.WHITE)
                         
                         frame_decode = self.get_track(frame_decode, json_part) 
                         ret, frame_buffer = cv2.imencode('.jpg', frame_decode)
