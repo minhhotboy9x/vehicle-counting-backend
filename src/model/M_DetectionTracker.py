@@ -88,7 +88,7 @@ class DetectionTracker:
                 select_detection |= tmp
                 # thứ tự của triggered detection
                 detection_poly_points.append(tmp_detection.get_anchors_coordinates(
-                                        anchor=sv.Position.BOTTOM_CENTER))
+                                        anchor=sv.Position.CENTER))
             else:
                 detection_poly_points.append(np.array([]))
 
