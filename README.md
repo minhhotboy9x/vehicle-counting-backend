@@ -7,4 +7,4 @@ Chạy backend:
 ```
 python src/app.py
 ```
-Có thể chỉnh file mô hình trong `src/config.py`.
+Có thể chỉnh thông số trong `src/config.py`.
