@@ -5,7 +5,7 @@ from model.M_DetectionTracker import DetectionTracker
 
 streaming_bp = Blueprint('streaming', __name__)
 
-det_tracker = DetectionTracker('models/v8n_relu_repc3_VOC.pt')
+det_tracker = DetectionTracker('models/yolov8n.pt')
 
 @streaming_bp.route('/update_model')
 def update_model():
