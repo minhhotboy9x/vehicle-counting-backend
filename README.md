@@ -2,6 +2,7 @@
 Cài đặt:
 ```
 pip install -r requirement.txt
+```
 Chạy backend:
 ```
 python src/app.py
